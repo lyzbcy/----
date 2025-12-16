@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeetCode 380: O(1) 时间插入、删除和获取随机元素 - 可视化演示</title>
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #111827;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-panel {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 10px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            width: 120px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--primary-color);
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            color: white;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-insert { background-color: var(--primary-color); }
+        .btn-remove { background-color: var(--danger-color); }
+        .btn-random { background-color: var(--secondary-color); }
+
+        .viz-container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 300px;
+            min-height: 300px;
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 10px;
+            font-size: 1.2rem;
+            color: #4b5563;
+        }
+
+        /* Array Visualization */
+        .array-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
+            align-content: flex-start;
+        }
+
+        .array-item {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.5s ease;
+        }
+
+        .array-item.highlight {
+            background-color: #dbeafe;
+            transform: scale(1.1);
+            border-color: #2563eb;
+            z-index: 10;
+        }
+
+        .array-item.target-remove {
+            background-color: #fee2e2;
+            border-color: var(--danger-color);
+        }
+
+        .array-item.moving {
+            background-color: #fef3c7;
+            border-color: #d97706;
+        }
+
+        .array-val {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .array-idx {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            position: absolute;
+            bottom: 2px;
+        }
+
+        /* Map Visualization */
+        .map-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .map-entry {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 15px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+
+        .map-entry.highlight {
+            background-color: #dbeafe;
+            border-color: var(--primary-color);
+        }
+
+        .map-key { font-weight: bold; }
+        .map-val { color: #6b7280; font-family: monospace; }
+
+        .log-panel {
+            width: 100%;
+            max-width: 800px;
+            background: #1f2937;
+            color: #10b981;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 15px;
+            border-radius: 8px;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 20px;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .log-entry { margin-bottom: 5px; }
+        .log-entry.error { color: #ef4444; }
+        .log-entry.info { color: #60a5fa; }
+
+        .explanation {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            max-width: 800px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>LeetCode 380: RandomizedSet 可视化</h1>
+    <div class="subtitle">直观理解 O(1) 删除的核心逻辑：交换 (Swap) 与 删除 (Pop)</div>
+
+    <div class="explanation" id="explanation">
+        👋 欢迎！输入一个数字并点击按钮来开始。观察数组和哈希表是如何协同工作的。
+        <br><strong>重点观察：</strong> 当你删除一个<b>非末尾</b>元素时，数组末尾的元素是如何“填补”空缺的。
+    </div>
+
+    <div class="control-panel">
+        <input type="number" id="inputVal" placeholder="输入数字" onkeypress="handleKeyPress(event)">
+        <button class="btn-insert" onclick="insert()">Insert (插入)</button>
+        <button class="btn-remove" onclick="remove()">Remove (删除)</button>
+        <button class="btn-random" onclick="getRandom()">GetRandom (随机)</button>
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <h2>ArrayList (动态数组)</h2>
+            <div class="array-container" id="arrayViz">
+                <!-- Array items will go here -->
+            </div>
+        </div>
+
+        <div class="panel" style="max-width: 300px;">
+            <h2>HashMap (哈希表)</h2>
+            <div style="display: flex; justify-content: space-between; padding: 0 10px; margin-bottom: 5px; color: #9ca3af; font-size: 0.9rem;">
+                <span>Key (数值)</span>
+                <span>Value (数组索引)</span>
+            </div>
+            <div class="map-container" id="mapViz">
+                <!-- Map entries will go here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="log-panel" id="logPanel">
+        <div class="log-entry">> 系统就绪...</div>
+    </div>
+
+    <script>
+        // 核心数据结构
+        let nums = [];
+        let valMap = new Map(); // val -> index
+
+        const arrayViz = document.getElementById('arrayViz');
+        const mapViz = document.getElementById('mapViz');
+        const logPanel = document.getElementById('logPanel');
+        const inputEl = document.getElementById('inputVal');
+        const explanationEl = document.getElementById('explanation');
+
+        function log(msg, type = 'normal') {
+            const div = document.createElement('div');
+            div.className = `log-entry ${type}`;
+            div.textContent = `> ${msg}`;
+            logPanel.appendChild(div);
+            logPanel.scrollTop = logPanel.scrollHeight;
+        }
+
+        function explain(msg) {
+            explanationEl.innerHTML = msg;
+        }
+
+        function render() {
+            // Render Array
+            arrayViz.innerHTML = '';
+            nums.forEach((val, idx) => {
+                const item = document.createElement('div');
+                item.className = 'array-item';
+                item.id = `arr-item-${idx}`;
+                item.innerHTML = `
+                    <span class="array-val">${val}</span>
+                    <span class="array-idx">${idx}</span>
+                `;
+                arrayViz.appendChild(item);
+            });
+
+            // Render Map
+            mapViz.innerHTML = '';
+            valMap.forEach((idx, val) => {
+                const entry = document.createElement('div');
+                entry.className = 'map-entry';
+                entry.id = `map-entry-${val}`;
+                entry.innerHTML = `
+                    <span class="map-key">${val}</span>
+                    <span class="map-val">${idx}</span>
+                `;
+                mapViz.appendChild(entry);
+            });
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') insert();
+        }
+
+        async function insert() {
+            const val = parseInt(inputEl.value);
+            if (isNaN(val)) return;
+            
+            inputEl.value = '';
+            
+            if (valMap.has(val)) {
+                log(`Insert(${val}): 失败，元素已存在`, 'error');
+                explain(`❌ <strong>插入失败</strong>：数字 ${val} 已经在集合中了。Map 中可以查到它。`);
+                highlightMap(val, 'error');
+                return;
+            }
+
+            // Logic
+            valMap.set(val, nums.length);
+            nums.push(val);
+
+            // Render & Animate
+            render();
+            const newIdx = nums.length - 1;
+            log(`Insert(${val}): 成功，插入到索引 ${newIdx}`);
+            explain(`✅ <strong>插入成功</strong>：<br>1. 数组末尾添加 ${val} (索引 ${newIdx})。<br>2. Map 记录映射关系：${val} -> ${newIdx}。`);
+            
+            highlightArray(newIdx);
+            highlightMap(val);
+        }
+
+        async function remove() {
+            const val = parseInt(inputEl.value);
+            if (isNaN(val)) return;
+
+            inputEl.value = '';
+
+            if (!valMap.has(val)) {
+                log(`Remove(${val}): 失败，元素不存在`, 'error');
+                explain(`❌ <strong>删除失败</strong>：数字 ${val} 不在集合中，无法删除。`);
+                return;
+            }
+
+            const indexToRemove = valMap.get(val);
+            const lastIndex = nums.length - 1;
+            const lastVal = nums[lastIndex];
+
+            log(`Remove(${val}): 元素在索引 ${indexToRemove}`);
+            
+            // Visual Step 1: Highlight target
+            highlightArray(indexToRemove, 'target-remove');
+            highlightMap(val, 'target-remove');
+            
+            if (indexToRemove === lastIndex) {
+                explain(`🗑️ <strong>简单删除</strong>：要删除的元素 ${val} 就在数组末尾。<br>直接删除即可，无需交换。`);
+                await wait(1000);
+            } else {
+                explain(`🔄 <strong>交换并删除 (Swap & Pop)</strong>：<br>1. 要删除的 ${val} 在索引 ${indexToRemove}。<br>2. 数组末尾元素是 ${lastVal}。<br>3. <strong>将 ${lastVal} 移动到索引 ${indexToRemove} 覆盖 ${val}。</strong>`);
+                
+                // Highlight the last element that will move
+                highlightArray(lastIndex, 'moving');
+                await wait(1500);
+
+                // Visual Step 2: Move last to target
+                // Logic update
+                nums[indexToRemove] = lastVal;
+                valMap.set(lastVal, indexToRemove);
+                
+                // Temporary render to show the move
+                render();
+                highlightArray(indexToRemove, 'moving'); // The spot now holds lastVal
+                document.getElementById(`arr-item-${lastIndex}`).style.opacity = '0.3'; // Fade out old last
+                
+                log(`操作: 将末尾元素 ${lastVal} 移动到索引 ${indexToRemove}`);
+                await wait(1500);
+            }
+
+            // Finalize
+            nums.pop();
+            valMap.delete(val);
+            render();
+            
+            log(`Remove(${val}): 完成`);
+            if (indexToRemove !== lastIndex) {
+                explain(`✅ <strong>删除完成</strong>：<br>1. 原末尾元素 ${lastVal} 现在位于索引 ${indexToRemove}。<br>2. Map 更新：${lastVal} -> ${indexToRemove}。<br>3. 数组长度减 1。`);
+                highlightArray(indexToRemove);
+                highlightMap(lastVal);
+            } else {
+                explain(`✅ <strong>删除完成</strong>：数组末尾元素已移除。`);
+            }
+        }
+
+        async function getRandom() {
+            if (nums.length === 0) {
+                log('GetRandom: 集合为空', 'error');
+                explain('⚠️ 集合为空，无法获取随机元素。');
+                return;
+            }
+
+            // Animation effect
+            explain('🎲 <strong>随机选择中...</strong>');
+            const duration = 10;
+            for(let i=0; i<duration; i++) {
+                const tempIdx = Math.floor(Math.random() * nums.length);
+                highlightArray(tempIdx);
+                await wait(50 + i * 20); // Slow down
+                if (i < duration - 1) removeHighlightArray(tempIdx);
+            }
+
+            const randomIndex = Math.floor(Math.random() * nums.length);
+            const randomVal = nums[randomIndex];
+            
+            log(`GetRandom: 选中索引 ${randomIndex}, 值为 ${randomVal}`);
+            explain(`🎉 <strong>选中：${randomVal}</strong> (索引 ${randomIndex})<br>由于数组是连续存储的，我们可以用 <code>Math.random()</code> 在 O(1) 时间内生成一个随机索引。`);
+            highlightArray(randomIndex);
+        }
+
+        // Helpers
+        function highlightArray(idx, className = 'highlight') {
+            const el = document.getElementById(`arr-item-${idx}`);
+            if (el) el.classList.add(className);
+        }
+        
+        function removeHighlightArray(idx) {
+            const el = document.getElementById(`arr-item-${idx}`);
+            if (el) el.className = 'array-item';
+        }
+
+        function highlightMap(val, className = 'highlight') {
+            const el = document.getElementById(`map-entry-${val}`);
+            if (el) el.classList.add(className);
+        }
+
+        function wait(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Init
+        render();
+    </script>
+</body>
+</html>

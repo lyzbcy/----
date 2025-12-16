@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>哨兵布置问题 - 深度可视化教学</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #333;
+            font-size: 24px;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        /* Left Panel: Visualization */
+        .viz-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        .grid-container {
+            display: grid;
+            gap: 5px;
+            margin: 20px auto;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            background-color: #f8f9fa;
+            border: 2px solid #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 8px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .cell.current {
+            border-color: #3498db;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.4);
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .cell.guard {
+            background-color: #2ecc71;
+            color: white;
+            border-color: #27ae60;
+        }
+
+        .cell.covered {
+            background-color: #d4edda;
+        }
+
+        .cell.guard.covered {
+            background-color: #2ecc71;
+        }
+
+        .cell .idx {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 10px;
+            color: #adb5bd;
+        }
+
+        .cell .val {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        /* Right Panel: Code & Status */
+        .code-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow: hidden;
+        }
+
+        .code-box {
+            flex: 2;
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            overflow: auto;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .code-line {
+            display: block;
+            padding: 2px 10px;
+            border-left: 4px solid transparent;
+        }
+
+        .code-line.active {
+            background-color: #3e4451;
+            border-left-color: #61afef;
+            color: white;
+        }
+
+        .line-num {
+            color: #5c6370;
+            margin-right: 15px;
+            user-select: none;
+            display: inline-block;
+            width: 25px;
+            text-align: right;
+        }
+
+        .status-box {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .status-header {
+            font-weight: bold;
+            font-size: 18px;
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .status-content {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #555;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .highlight {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .highlight-green {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background-color: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background-color: #7f8c8d;
+        }
+
+        input {
+            padding: 8px;
+            width: 50px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="controls">
+        <label>行 (M): <input type="number" id="input-m" value="2" min="1" max="4"></label>
+        <label>列 (N): <input type="number" id="input-n" value="3" min="1" max="4"></label>
+        <div style="width: 20px;"></div>
+        <button onclick="init()">重置 / 应用</button>
+        <button onclick="nextStep()" id="btn-next">单步执行 (Next)</button>
+        <button onclick="toggleAuto()" id="btn-auto" class="secondary">自动播放</button>
+        <div style="flex:1"></div>
+        <span>速度: <input type="range" id="speed-range" min="50" max="1000" value="500" style="width: 100px;"></span>
+    </div>
+
+    <div class="main-container">
+        <!-- Visualization -->
+        <div class="viz-panel">
+            <div id="grid" class="grid-container"></div>
+            <div style="margin-top: auto; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                <div><strong>当前最优解 (min_guards):</strong> <span id="val-min" class="highlight-green">Inf</span></div>
+                <div><strong>解的个数 (count):</strong> <span id="val-count">0</span></div>
+            </div>
+        </div>
+
+        <!-- Code & Explanation -->
+        <div class="code-panel">
+            <div class="code-box" id="code-display">
+                <!-- Code will be injected here -->
+            </div>
+            <div class="status-box">
+                <div class="status-header">当前步骤详解</div>
+                <div class="status-content" id="explanation">
+                    点击“单步执行”开始算法演示。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // C++ Code Template
+        const cppCode = `void solve(int idx, int count) {
+    // 1. 剪枝：当前数量已超过最优解
+    if (count > min_guards) return;
+
+    // 2. 终止条件：处理完所有格子
+    if (idx == M * N) {
+        if (check_all_covered()) {
+            update_optimal(count);
+        }
+        return;
+    }
+
+    int r = idx / N;
+    int c = idx % N;
+
+    // 3. 剪枝：检查上方格子 (r-1, c) 是否被覆盖
+    // 如果没被覆盖，当前位置 (r, c) 必须放哨兵
+    bool must_place = false;
+    if (r > 0 && !is_covered(r-1, c)) {
+        must_place = true;
+    }
+
+    // 4. 尝试放置哨兵
+    if (count + 1 <= min_guards) {
+        add_guard(r, c);
+        solve(idx + 1, count + 1);
+        remove_guard(r, c); // 回溯
+    }
+
+    // 5. 尝试不放哨兵 (仅当非必须放置时)
+    if (!must_place) {
+        solve(idx + 1, count);
+    }
+}`;
+
+        const codeLines = cppCode.split('\n');
+
+        // State
+        let M = 2, N = 3;
+        let guards = [];
+        let covered = [];
+        let minGuards = Infinity;
+        let solutionCount = 0;
+        let steps = []; // Generator steps
+        let currentStepIndex = -1;
+        let autoPlayInterval = null;
+
+        // Initialization
+        function init() {
+            stopAuto();
+            M = parseInt(document.getElementById('input-m').value);
+            N = parseInt(document.getElementById('input-n').value);
+
+            guards = Array(M).fill().map(() => Array(N).fill(0));
+            covered = Array(M).fill().map(() => Array(N).fill(0));
+            minGuards = M * N + 1;
+            solutionCount = 0;
+
+            // Render Grid
+            const grid = document.getElementById('grid');
+            grid.style.gridTemplateColumns = `repeat(${N}, 60px)`;
+            grid.innerHTML = '';
+            for (let r = 0; r < M; r++) {
+                for (let c = 0; c < N; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${r}-${c}`;
+                    cell.innerHTML = `<span class="idx">(${r},${c})</span><span class="val" id="cov-${r}-${c}">0</span>`;
+                    grid.appendChild(cell);
+                }
+            }
+
+            // Render Code
+            const codeBox = document.getElementById('code-display');
+            codeBox.innerHTML = codeLines.map((line, i) =>
+                `<div class="code-line" id="line-${i + 1}"><span class="line-num">${i + 1}</span>${escapeHtml(line)}</div>`
+            ).join('');
+
+            // Reset UI
+            document.getElementById('val-min').innerText = 'Inf';
+            document.getElementById('val-count').innerText = '0';
+            document.getElementById('explanation').innerText = '准备就绪。点击“单步执行”开始。';
+
+            // Initialize Generator
+            steps = solver(0, 0);
+            currentStepIndex = -1;
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function updateGridUI(activeR, activeC) {
+            for (let r = 0; r < M; r++) {
+                for (let c = 0; c < N; c++) {
+                    const cell = document.getElementById(`cell-${r}-${c}`);
+                    const covSpan = document.getElementById(`cov-${r}-${c}`);
+
+                    cell.className = 'cell';
+                    if (guards[r][c]) cell.classList.add('guard');
+                    if (covered[r][c] > 0) cell.classList.add('covered');
+                    if (guards[r][c] && covered[r][c] > 0) cell.classList.add('guard'); // Keep green
+
+                    if (r === activeR && c === activeC) cell.classList.add('current');
+
+                    covSpan.innerText = covered[r][c];
+                }
+            }
+        }
+
+        function highlightLine(lineNum) {
+            document.querySelectorAll('.code-line').forEach(el => el.classList.remove('active'));
+            if (lineNum > 0) {
+                const line = document.getElementById(`line-${lineNum}`);
+                if (line) {
+                    line.classList.add('active');
+                    line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+
+        // Logic Helpers
+        function isValid(r, c) { return r >= 0 && r < M && c >= 0 && c < N; }
+        function addGuard(r, c) {
+            guards[r][c] = 1;
+            const dirs = [[0, 0], [0, 1], [0, -1], [1, 0], [-1, 0]];
+            for (let [dr, dc] of dirs) if (isValid(r + dr, c + dc)) covered[r + dr][c + dc]++;
+        }
+        function removeGuard(r, c) {
+            guards[r][c] = 0;
+            const dirs = [[0, 0], [0, 1], [0, -1], [1, 0], [-1, 0]];
+            for (let [dr, dc] of dirs) if (isValid(r + dr, c + dc)) covered[r + dr][c + dc]--;
+        }
+
+        // Generator for Steps
+        function* solver(idx, count) {
+            const r = Math.floor(idx / N);
+            const c = idx % N;
+
+            // Line 2: Pruning count
+            yield { line: 3, r, c, msg: `检查剪枝: 当前哨兵数 ${count} vs 最优 ${minGuards}` };
+            if (count > minGuards) {
+                yield { line: 3, r, c, msg: `剪枝触发! ${count} > ${minGuards}, 返回上一层` };
+                return;
+            }
+
+            // Line 5: Base case
+            yield { line: 6, r, c, msg: `检查是否处理完所有格子 (idx=${idx}, total=${M * N})` };
+            if (idx === M * N) {
+                let allCovered = true;
+                for (let i = 0; i < M; i++) for (let j = 0; j < N; j++) if (covered[i][j] === 0) allCovered = false;
+
+                yield { line: 7, r, c, msg: `检查全覆盖: ${allCovered ? "是" : "否"}` };
+
+                if (allCovered) {
+                    if (count < minGuards) {
+                        minGuards = count;
+                        solutionCount = 1;
+                        yield { line: 8, r, c, msg: `发现新最优解! 哨兵数: ${minGuards}` };
+                    } else if (count === minGuards) {
+                        solutionCount++;
+                        yield { line: 10, r, c, msg: `发现相同最优解, 数量+1` };
+                    }
+                    document.getElementById('val-min').innerText = minGuards;
+                    document.getElementById('val-count').innerText = solutionCount;
+                }
+                return;
+            }
+
+            yield { line: 13, r, c, msg: `当前处理格子: (${r}, ${c})` };
+
+            // Line 18: Pruning connectivity
+            let mustPlace = false;
+            yield { line: 19, r, c, msg: `检查上方格子 (${r - 1}, ${c}) 是否被覆盖` };
+            if (r > 0) {
+                if (covered[r - 1][c] === 0) {
+                    mustPlace = true;
+                    yield { line: 20, r, c, msg: `上方格子 (${r - 1}, ${c}) 未被覆盖! 当前 (${r}, ${c}) <span class="highlight">必须放置</span> 哨兵` };
+                } else {
+                    yield { line: 19, r, c, msg: `上方格子已被覆盖 (或不存在), 可以选择放或不放` };
+                }
+            }
+
+            // Line 24: Try placing
+            yield { line: 24, r, c, msg: `尝试分支 1: 在 (${r}, ${c}) 放置哨兵` };
+            if (count + 1 <= minGuards) {
+                addGuard(r, c);
+                yield { line: 25, r, c, msg: `已放置哨兵, 递归进入下一层` };
+
+                yield* solver(idx + 1, count + 1);
+
+                removeGuard(r, c);
+                yield { line: 27, r, c, msg: `回溯: 移除 (${r}, ${c}) 的哨兵` };
+            } else {
+                yield { line: 24, r, c, msg: `剪枝: 放置后数量 ${count + 1} 将超过最优, 跳过此分支` };
+            }
+
+            // Line 31: Try skipping
+            yield { line: 31, r, c, msg: `尝试分支 2: 不在 (${r}, ${c}) 放置哨兵` };
+            if (!mustPlace) {
+                yield { line: 32, r, c, msg: `非强制放置, 可以跳过, 递归进入下一层` };
+                yield* solver(idx + 1, count);
+            } else {
+                yield { line: 31, r, c, msg: `剪枝: 因为必须放置, <span class="highlight">不能跳过</span> 此位置` };
+            }
+        }
+
+        // Control Functions
+        function nextStep() {
+            const res = steps.next();
+            if (res.done) {
+                document.getElementById('explanation').innerText = "算法执行结束!";
+                highlightLine(-1);
+                stopAuto();
+                return;
+            }
+
+            const state = res.value;
+            updateGridUI(state.r, state.c);
+            highlightLine(state.line);
+            document.getElementById('explanation').innerHTML = state.msg;
+        }
+
+        function toggleAuto() {
+            if (autoPlayInterval) {
+                stopAuto();
+            } else {
+                const btn = document.getElementById('btn-auto');
+                btn.innerText = "暂停";
+                btn.classList.remove('secondary');
+                const speed = 1050 - document.getElementById('speed-range').value;
+                autoPlayInterval = setInterval(nextStep, speed);
+            }
+        }
+
+        function stopAuto() {
+            if (autoPlayInterval) {
+                clearInterval(autoPlayInterval);
+                autoPlayInterval = null;
+                const btn = document.getElementById('btn-auto');
+                btn.innerText = "自动播放";
+                btn.classList.add('secondary');
+            }
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+
+</html>
