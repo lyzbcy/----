@@ -106,7 +106,7 @@ double closestUtil(Point points[], int n) {
     }
     
     // 计算条带内的最短距离
-    double stripMin = stripClosest(strip, stripSize, d);
+
     free(strip);
     
     // 返回全局最小距离
